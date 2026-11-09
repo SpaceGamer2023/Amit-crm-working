@@ -54,6 +54,7 @@ function AppContent() {
   // Notifications
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'default'>(
     typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default'
+  );
   // In-app alert toasts
   const [inAppAlerts, setInAppAlerts] = useState<InAppAlert[]>([]);
 
