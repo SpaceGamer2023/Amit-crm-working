@@ -241,7 +241,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const handleSeedSampleData = async () => {
     if (confirm(isRTL ? 'לטעון נתוני הדגמה למסד הנתונים?' : 'Load sample demo data into local database?')) {
-      await crmDb.seedSampleData();
+      await crmDb.seedInitialData();
       onDataChanged();
       showStatus(isRTL ? 'נתוני הדגמה נטענו בהצלחה.' : 'Sample data loaded successfully.');
     }
