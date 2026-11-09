@@ -14,9 +14,7 @@ import {
   checkAndNotifyMilestones,
   requestDesktopNotificationPermission,
   sendDesktopAlert,
-  InAppAlert,
 } from './lib/notificationService.ts';
-import { Bell, X } from 'lucide-react';
 import { LanguageProvider, useTranslation } from './lib/i18n.tsx';
 import { ThemeProvider } from './lib/theme.tsx';
 import { Header } from './components/Header.tsx';
@@ -55,8 +53,6 @@ function AppContent() {
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'default'>(
     typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default'
   );
-  // In-app alert toasts
-  const [inAppAlerts, setInAppAlerts] = useState<InAppAlert[]>([]);
 
   // Load all data from SQLite
   const loadCrmData = useCallback(async () => {
@@ -97,20 +93,6 @@ function AppContent() {
     return () => clearInterval(interval);
   }, [reminders, deals, complaints, language, isLoading]);
 
-  // Listen for in-app alert broadcasts
-  useEffect(() => {
-    const handleInAppAlert = (e: any) => {
-      if (e.detail) {
-        setInAppAlerts((prev) => [e.detail, ...prev.slice(0, 3)]);
-        setTimeout(() => {
-          setInAppAlerts((prev) => prev.filter((a) => a.id !== e.detail.id));
-        }, 8000);
-      }
-    };
-    window.addEventListener('amit_crm_in_app_alert', handleInAppAlert);
-    return () => window.removeEventListener('amit_crm_in_app_alert', handleInAppAlert);
-  }, []);
-
   // Global Keyboard Shortcuts: Cmd+K / Ctrl+K for search, Cmd+, / Ctrl+, for settings
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -147,7 +129,7 @@ function AppContent() {
         ? `You have ${count} pending reminder(s) due today or overdue, and ${activeDealsClosingSoon.length} active deal(s) in pipeline!`
         : 'All caught up! No urgent tasks pending right now.';
 
-    await sendDesktopAlert(title, body, count > 0 ? 'reminder' : 'system');
+    await sendDesktopAlert(title, body);
   };
 
   // Reminder toggle
@@ -374,34 +356,6 @@ function AppContent() {
         preselectedContactId={activeContactId || undefined}
       />
 
-      {/* Floating In-App Notifications Container */}
-      {inAppAlerts.length > 0 && (
-        <div className={`fixed bottom-5 ${isRTL ? 'left-5' : 'right-5'} z-50 flex flex-col gap-2 max-w-sm pointer-events-none`}>
-          {inAppAlerts.map((alert) => (
-            <div
-              key={alert.id}
-              className="pointer-events-auto p-4 rounded-xl bg-white dark:bg-[#202125] border border-blue-200 dark:border-blue-800 shadow-xl flex items-start gap-3 animate-in slide-in-from-bottom duration-200"
-            >
-              <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/70 border border-blue-200 dark:border-blue-800 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
-                <Bell className="w-4 h-4" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-1">
-                  <h4 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate">{alert.title}</h4>
-                  <span className="text-[10px] text-zinc-400 shrink-0">{alert.timestamp}</span>
-                </div>
-                <p className="text-xs text-zinc-600 dark:text-zinc-300 mt-0.5 leading-snug">{alert.body}</p>
-              </div>
-              <button
-                onClick={() => setInAppAlerts((prev) => prev.filter((a) => a.id !== alert.id))}
-                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 cursor-pointer p-0.5"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

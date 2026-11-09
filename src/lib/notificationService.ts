@@ -2,7 +2,6 @@ import { Reminder, Deal, Complaint, formatCurrency } from './crmLogic.ts';
 
 export interface NotificationSettings {
   enabled: boolean;
-  soundEnabled: boolean;
   notifyTasksDueToday: boolean;
   notifyTasksOverdue: boolean;
   notifyDealsClosingToday: boolean;
@@ -15,7 +14,6 @@ export const NOTIFIED_MILESTONES_KEY = 'amit_crm_notified_milestones';
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   enabled: true,
-  soundEnabled: true,
   notifyTasksDueToday: true,
   notifyTasksOverdue: true,
   notifyDealsClosingToday: true,
@@ -41,58 +39,6 @@ export function getNotificationSettings(): NotificationSettings {
 export function saveNotificationSettings(settings: NotificationSettings): void {
   if (typeof window !== 'undefined' && window.localStorage) {
     window.localStorage.setItem(NOTIFICATION_SETTINGS_KEY, JSON.stringify(settings));
-  }
-}
-
-// Subtle pleasant synth chime via Web Audio API (no external asset needed)
-export function playNotificationChime(): void {
-  try {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContextClass) return;
-    const ctx = new AudioContextClass();
-    const now = ctx.currentTime;
-
-    const osc1 = ctx.createOscillator();
-    const osc2 = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(587.33, now); // D5
-    osc1.frequency.exponentialRampToValueAtTime(880, now + 0.15); // A5
-
-    osc2.type = 'triangle';
-    osc2.frequency.setValueAtTime(880, now + 0.15);
-    osc2.frequency.exponentialRampToValueAtTime(1174.66, now + 0.35); // D6
-
-    gain.gain.setValueAtTime(0.001, now);
-    gain.gain.exponentialRampToValueAtTime(0.15, now + 0.05);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-
-    osc1.connect(gain);
-    osc2.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc1.start(now);
-    osc2.start(now + 0.15);
-    osc1.stop(now + 0.3);
-    osc2.stop(now + 0.5);
-  } catch (e) {
-    // AudioContext might be blocked until user gesture, safely ignore
-  }
-}
-
-// In-app alert dispatch
-export interface InAppAlert {
-  id: string;
-  title: string;
-  body: string;
-  type: 'reminder' | 'deal' | 'complaint' | 'system';
-  timestamp: string;
-}
-
-export function dispatchInAppAlert(alert: InAppAlert): void {
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('amit_crm_in_app_alert', { detail: alert }));
   }
 }
 
@@ -130,41 +76,28 @@ function markNotified(milestoneKey: string): void {
   }
 }
 
-// Core alert dispatcher (Native desktop + Web Notification + In-app + Sound)
+// Send only through the operating system's notification service.
 export async function sendDesktopAlert(
   title: string,
-  body: string,
-  type: InAppAlert['type'] = 'system'
+  body: string
 ): Promise<boolean> {
-  const settings = getNotificationSettings();
-
-  if (settings.soundEnabled) {
-    playNotificationChime();
-  }
-
-  // Always dispatch in-app alert banner
-  dispatchInAppAlert({
-    id: `alert_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-    title,
-    body,
-    type,
-    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-  });
-
   // Try Tauri v2 native notification if running in desktop binary
   if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
     try {
       const tauriNotification = await import('@tauri-apps/plugin-notification');
       if (tauriNotification.sendNotification) {
+        // No sound is supplied so Windows displays a silent native toast.
         tauriNotification.sendNotification({ title, body });
         return true;
       }
-    } catch {
-      // Fallback to web notification
+    } catch (error) {
+      console.warn('Native Windows notification failed:', error);
+      return false;
     }
+    return false;
   }
 
-  // Web Notification API
+  // Browser notification fallback for web previews only; no CRM banner is shown.
   if (typeof window !== 'undefined' && 'Notification' in window) {
     if (Notification.permission === 'granted') {
       try {
@@ -184,21 +117,17 @@ export async function sendDesktopAlert(
 
 // Request notification permissions
 export async function requestDesktopNotificationPermission(): Promise<NotificationPermission> {
-  if (typeof window === 'undefined' || !('Notification' in window)) {
-    return 'denied';
-  }
-
   try {
     // If in Tauri v2 desktop environment
-    if ((window as any).__TAURI_INTERNALS__) {
+    if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
       const tauriNotification = await import('@tauri-apps/plugin-notification');
       if (tauriNotification.requestPermission) {
         const tauriPerm = await tauriNotification.requestPermission();
-        if (tauriPerm === 'granted') {
-          return 'granted';
-        }
+        return tauriPerm;
       }
     }
+
+    if (typeof window === 'undefined' || !('Notification' in window)) return 'denied';
 
     const perm = await Notification.requestPermission();
     if (perm === 'granted') {
@@ -225,20 +154,21 @@ export function checkAndNotifyMilestones(
   const settings = getNotificationSettings();
   if (!settings.enabled) return;
 
-  const todayStr = new Date().toISOString().split('T')[0];
-  const todayStart = new Date(`${todayStr}T00:00:00`).getTime();
-  const todayEnd = new Date(`${todayStr}T23:59:59.999`).getTime();
+  const today = new Date();
+  const todayStr = toLocalDateString(today);
+  const todayOrdinal = calendarOrdinal(today);
 
   // 1. Reminders
   for (const rem of data.reminders) {
     if (rem.completed) continue;
     if (!rem.due_date) continue;
 
-    const dueTime = new Date(`${rem.due_date.split('T')[0]}T12:00:00`).getTime();
-    if (isNaN(dueTime)) continue;
+    const dueDate = new Date(`${rem.due_date.split('T')[0]}T00:00:00`);
+    if (isNaN(dueDate.getTime())) continue;
+    const daysUntilDue = calendarOrdinal(dueDate) - todayOrdinal;
 
     // Overdue task
-    if (dueTime < todayStart && settings.notifyTasksOverdue) {
+    if (daysUntilDue < 0 && settings.notifyTasksOverdue) {
       const key = `rem_overdue_${rem.id}_${todayStr}`;
       if (!hasBeenNotified(key)) {
         markNotified(key);
@@ -246,11 +176,11 @@ export function checkAndNotifyMilestones(
         const body = language === 'he'
           ? `המשימה "${rem.title}" עברה את תאריך היעד (${rem.due_date}).`
           : `Task "${rem.title}" was due on ${rem.due_date} and needs attention.`;
-        sendDesktopAlert(title, body, 'reminder');
+        sendDesktopAlert(title, body);
       }
     }
     // Due today
-    else if (dueTime >= todayStart && dueTime <= todayEnd && settings.notifyTasksDueToday) {
+    else if (daysUntilDue === 0 && settings.notifyTasksDueToday) {
       const key = `rem_due_today_${rem.id}_${todayStr}`;
       if (!hasBeenNotified(key)) {
         markNotified(key);
@@ -258,7 +188,7 @@ export function checkAndNotifyMilestones(
         const body = language === 'he'
           ? `יש לבצע היום: "${rem.title}" [עדיפות: ${rem.priority}].`
           : `Due today: "${rem.title}" [Priority: ${rem.priority}].`;
-        sendDesktopAlert(title, body, 'reminder');
+        sendDesktopAlert(title, body);
       }
     }
   }
@@ -268,10 +198,10 @@ export function checkAndNotifyMilestones(
     if (deal.stage === 'Won' || deal.stage === 'Lost') continue;
     if (!deal.close_date) continue;
 
-    const closeTime = new Date(`${deal.close_date.split('T')[0]}T12:00:00`).getTime();
-    if (isNaN(closeTime)) continue;
+    const closeDate = new Date(deal.close_date.length === 10 ? `${deal.close_date}T00:00:00` : deal.close_date);
+    if (isNaN(closeDate.getTime())) continue;
 
-    const diffDays = Math.ceil((closeTime - todayStart) / (1000 * 60 * 60 * 24));
+    const diffDays = calendarOrdinal(closeDate) - todayOrdinal;
     const formattedVal = formatCurrency(deal.value, deal.currency);
 
     // Closing today
@@ -283,7 +213,7 @@ export function checkAndNotifyMilestones(
         const body = language === 'he'
           ? `העסקה "${deal.title}" (${formattedVal}) מתוכננת להיסגר היום.`
           : `Deal "${deal.title}" (${formattedVal}) is scheduled to close today.`;
-        sendDesktopAlert(title, body, 'deal');
+        sendDesktopAlert(title, body);
       }
     }
     // Closing soon (within dealLeadDays, e.g. 1-3 days)
@@ -295,8 +225,17 @@ export function checkAndNotifyMilestones(
         const body = language === 'he'
           ? `נותרו ${diffDays} ימים לעסקה "${deal.title}" (${formattedVal}) בשלב ${deal.stage}.`
           : `Deal "${deal.title}" (${formattedVal}) at stage "${deal.stage}" closes in ${diffDays} days.`;
-        sendDesktopAlert(title, body, 'deal');
+        sendDesktopAlert(title, body);
       }
     }
   }
+}
+
+function toLocalDateString(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function calendarOrdinal(date: Date): number {
+  return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000;
 }

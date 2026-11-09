@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   X,
   Building2,
@@ -46,6 +46,11 @@ interface QuickAddModalProps {
   preselectedContactId?: string;
 }
 
+const toLocalDateTimeValue = (date: Date): string => {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
 export const QuickAddModal: React.FC<QuickAddModalProps> = ({
   isOpen,
   onClose,
@@ -55,6 +60,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
   onSuccess,
   preselectedContactId,
 }) => {
+  const closeDateInputRef = useRef<HTMLInputElement>(null);
   const { t, isRTL, language, getStageName, getPriorityName, getStatusName, getActivityName, getSeverityName } = useTranslation();
   const [activeTab, setActiveTab] = useState<string>(defaultType);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -69,7 +75,12 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
     stage: 'Lead' as DealStage,
     company_id: '',
     contact_id: preselectedContactId || '',
-    close_date: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
+    close_date: (() => {
+      const date = new Date();
+      date.setDate(date.getDate() + 14);
+      date.setHours(17, 0, 0, 0);
+      return toLocalDateTimeValue(date);
+    })(),
     currency: getActiveCurrency(),
   });
   const [reminderForm, setReminderForm] = useState({
@@ -108,10 +119,11 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
   const getRelativeDateLabel = (dateStr: string) => {
     if (!dateStr) return '';
     try {
-      const target = new Date(dateStr + 'T00:00:00');
+      const target = new Date(dateStr.length === 10 ? `${dateStr}T00:00:00` : dateStr);
       const now = new Date();
       now.setHours(0, 0, 0, 0);
-      const diffTime = target.getTime() - now.getTime();
+      const targetDay = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+      const diffTime = targetDay.getTime() - now.getTime();
       const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
       const formatted = target.toLocaleDateString(language === 'he' ? 'he-IL' : 'en-US', {
@@ -119,6 +131,8 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
         month: 'short',
         day: 'numeric',
         year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
       });
 
       if (diffDays === 0) return language === 'he' ? `היום (${formatted})` : `Today (${formatted})`;
@@ -134,11 +148,6 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
     } catch {
       return dateStr;
     }
-  };
-
-  const setDealDateOffset = (days: number) => {
-    const d = new Date(Date.now() + days * 86400000);
-    setDealForm((prev) => ({ ...prev, close_date: d.toISOString().split('T')[0] }));
   };
 
   const setReminderDateOffset = (days: number) => {
@@ -440,7 +449,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
                 </div>
               </div>
 
-              {/* Expected Close Date with Live Confirmation & Quick Presets */}
+              {/* Expected Close Date and Time */}
               <div className="p-3.5 rounded-xl bg-zinc-50 dark:bg-[#1a1b1f] border border-zinc-200/90 dark:border-zinc-700/80 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
@@ -455,43 +464,19 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
                 </div>
 
                 <input
-                  type="date"
+                  ref={closeDateInputRef}
+                  type="datetime-local"
                   value={dealForm.close_date}
                   onChange={(e) => setDealForm({ ...dealForm, close_date: e.target.value })}
+                  onClick={() => {
+                    try {
+                      closeDateInputRef.current?.showPicker();
+                    } catch {
+                      // The browser may not expose showPicker; the native input remains usable.
+                    }
+                  }}
                   className="w-full px-3 py-2 text-xs font-medium rounded-lg border border-zinc-300 dark:border-zinc-650 bg-white dark:bg-[#18181b] text-zinc-900 dark:text-zinc-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
-
-                {/* Quick Date Chips */}
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={() => setDealDateOffset(0)}
-                    className="px-2 py-0.5 rounded text-[11px] font-medium bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 cursor-pointer"
-                  >
-                    {language === 'he' ? 'היום' : 'Today'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDealDateOffset(7)}
-                    className="px-2 py-0.5 rounded text-[11px] font-medium bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 cursor-pointer"
-                  >
-                    {language === 'he' ? '+שבוע' : '+7 Days'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDealDateOffset(14)}
-                    className="px-2 py-0.5 rounded text-[11px] font-medium bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 cursor-pointer"
-                  >
-                    {language === 'he' ? '+שבועיים' : '+14 Days'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDealDateOffset(30)}
-                    className="px-2 py-0.5 rounded text-[11px] font-medium bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 cursor-pointer"
-                  >
-                    {language === 'he' ? '+חודש' : '+30 Days'}
-                  </button>
-                </div>
               </div>
 
               {/* Company & Contact Assignment */}

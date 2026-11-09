@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import confetti from 'canvas-confetti';
 import {
   Plus,
@@ -28,6 +28,14 @@ interface DealsKanbanViewProps {
   onOpenContactDrawer: (contactId: string) => void;
 }
 
+const formatCloseDate = (value: string): string => {
+  const date = new Date(value.length === 10 ? `${value}T00:00:00` : value);
+  if (Number.isNaN(date.getTime())) return value;
+  return value.includes('T')
+    ? date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+    : date.toLocaleDateString(undefined, { dateStyle: 'medium' });
+};
+
 export const DealsKanbanView: React.FC<DealsKanbanViewProps> = ({
   deals,
   companies,
@@ -40,6 +48,7 @@ export const DealsKanbanView: React.FC<DealsKanbanViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [draggedDealId, setDraggedDealId] = useState<string | null>(null);
   const [dragOverStage, setDragOverStage] = useState<DealStage | null>(null);
+  const pointerDrag = useRef<{ dealId: string; pointerId: number; x: number; y: number; active: boolean } | null>(null);
 
   const companyMap = new Map(companies.map((c) => [c.id, c]));
   const contactMap = new Map(contacts.map((c) => [c.id, c]));
@@ -58,31 +67,13 @@ export const DealsKanbanView: React.FC<DealsKanbanViewProps> = ({
     );
   });
 
-  // Drag handlers
-  const handleDragStart = (e: React.DragEvent, dealId: string) => {
-    e.dataTransfer.setData('text/plain', dealId);
-    e.dataTransfer.effectAllowed = 'move';
-    setDraggedDealId(dealId);
+  const getStageAtPoint = (x: number, y: number): DealStage | null => {
+    const stageElement = document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-deal-stage]');
+    const stage = stageElement?.dataset.dealStage;
+    return DEAL_STAGES.find((candidate) => candidate === stage) ?? null;
   };
 
-  const handleDragOver = (e: React.DragEvent, stage: DealStage) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if (dragOverStage !== stage) {
-      setDragOverStage(stage);
-    }
-  };
-
-  const handleDragLeave = () => {
-    setDragOverStage(null);
-  };
-
-  const handleDrop = async (e: React.DragEvent, targetStage: DealStage) => {
-    e.preventDefault();
-    setDragOverStage(null);
-    const dealId = e.dataTransfer.getData('text/plain') || draggedDealId;
-    if (!dealId) return;
-
+  const moveDealToStage = async (dealId: string, targetStage: DealStage) => {
     const deal = deals.find((d) => d.id === dealId);
     if (!deal || deal.stage === targetStage) return;
 
@@ -100,8 +91,51 @@ export const DealsKanbanView: React.FC<DealsKanbanViewProps> = ({
       }
     }
 
-    await crmDb.updateDealStage(dealId, targetStage);
-    onDataChanged();
+    try {
+      await crmDb.updateDealStage(dealId, targetStage);
+      onDataChanged();
+    } catch (error) {
+      console.error('Could not move deal to the selected stage:', error);
+    }
+  };
+
+  // Pointer dragging works consistently in the Windows WebView used by the desktop app.
+  const handleCardPointerDown = (e: React.PointerEvent<HTMLDivElement>, dealId: string) => {
+    if (e.button !== 0 || (e.target as Element).closest('button, a, input, select, textarea')) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    pointerDrag.current = { dealId, pointerId: e.pointerId, x: e.clientX, y: e.clientY, active: false };
+  };
+
+  const handleBoardPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = pointerDrag.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    if (!drag.active && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 7) return;
+
+    if (!drag.active) {
+      drag.active = true;
+      setDraggedDealId(drag.dealId);
+    }
+    setDragOverStage(getStageAtPoint(e.clientX, e.clientY));
+  };
+
+  const finishPointerDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = pointerDrag.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+
+    const targetStage = drag.active ? getStageAtPoint(e.clientX, e.clientY) : null;
+    pointerDrag.current = null;
+    setDraggedDealId(null);
+    setDragOverStage(null);
+    if (targetStage) void moveDealToStage(drag.dealId, targetStage);
+  };
+
+  const cancelPointerDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = pointerDrag.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    pointerDrag.current = null;
+    setDraggedDealId(null);
+    setDragOverStage(null);
   };
 
   const handleDeleteDeal = async (dealId: string, title: string) => {
@@ -112,7 +146,12 @@ export const DealsKanbanView: React.FC<DealsKanbanViewProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col p-6 space-y-4">
+    <div
+      className="h-full flex flex-col p-6 space-y-4"
+      onPointerMove={handleBoardPointerMove}
+      onPointerUp={finishPointerDrag}
+      onPointerCancel={cancelPointerDrag}
+    >
       {/* Top Filter & Action Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
         <div>
@@ -164,9 +203,7 @@ export const DealsKanbanView: React.FC<DealsKanbanViewProps> = ({
             return (
               <div
                 key={stage}
-                onDragOver={(e) => handleDragOver(e, stage)}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, stage)}
+                data-deal-stage={stage}
                 className={`w-72 flex flex-col rounded-xl border bg-zinc-50/60 dark:bg-[#202125]/90 max-h-full transition-colors ${
                   isTarget
                     ? 'border-zinc-900 dark:border-zinc-400 bg-zinc-100/90 dark:bg-zinc-800 ring-2 ring-zinc-900/10 dark:ring-zinc-400/20'
@@ -210,9 +247,10 @@ export const DealsKanbanView: React.FC<DealsKanbanViewProps> = ({
                       return (
                         <div
                           key={deal.id}
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, deal.id)}
-                          className="p-3 bg-white dark:bg-[#18181b] rounded-lg border border-zinc-200/90 dark:border-zinc-700/80 shadow-2xs hover:shadow-xs hover:border-zinc-300 dark:hover:border-zinc-600 transition-all cursor-grab active:cursor-grabbing group space-y-2"
+                          onPointerDown={(e) => handleCardPointerDown(e, deal.id)}
+                          className={`p-3 bg-white dark:bg-[#18181b] rounded-lg border border-zinc-200/90 dark:border-zinc-700/80 shadow-2xs hover:shadow-xs hover:border-zinc-300 dark:hover:border-zinc-600 transition-all cursor-grab active:cursor-grabbing select-none group space-y-2 ${
+                            draggedDealId === deal.id ? 'opacity-60 scale-[0.98]' : ''
+                          }`}
                         >
                           <div className="flex items-start justify-between gap-2">
                             <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 leading-snug">
@@ -257,7 +295,7 @@ export const DealsKanbanView: React.FC<DealsKanbanViewProps> = ({
                             {deal.close_date && (
                               <div className="flex items-center gap-1.5 text-zinc-400 dark:text-zinc-500">
                                 <Calendar className="w-3 h-3 text-zinc-400 shrink-0" />
-                                <span>{deal.close_date}</span>
+                                <span>{formatCloseDate(deal.close_date)}</span>
                               </div>
                             )}
                           </div>

@@ -19,7 +19,6 @@ import {
   Copy,
   FolderDown,
   DollarSign,
-  Volume2,
   Clock,
   GitBranch,
   ExternalLink,
@@ -40,7 +39,6 @@ import {
   getNotificationSettings,
   saveNotificationSettings,
   sendDesktopAlert,
-  playNotificationChime,
 } from '../../lib/notificationService.ts';
 
 interface SettingsViewProps {
@@ -377,7 +375,7 @@ pause
     const body = language === 'he'
       ? 'שיחת מעקב חשובה עם לקוח מתוכננת להיום [עדיפות גבוהה].'
       : 'Important client follow-up scheduled for today [High Priority].';
-    await sendDesktopAlert(title, body, 'reminder');
+    await sendDesktopAlert(title, body);
     showStatus(language === 'he' ? 'התראת משימה נשלחה בהצלחה!' : 'Task notification sent!');
   };
 
@@ -387,7 +385,7 @@ pause
     const body = language === 'he'
       ? `העסקה "מערכת ניהול ענן" (${sym}75,000) מתוכננת להיסגר בעוד יומיים.`
       : `Deal "Enterprise Cloud Suite" (${sym}75,000) is scheduled to close in 2 days.`;
-    await sendDesktopAlert(title, body, 'deal');
+    await sendDesktopAlert(title, body);
     showStatus(language === 'he' ? 'התראת מועד עסקה נשלחה בהצלחה!' : 'Deal alert sent!');
   };
 
@@ -836,28 +834,6 @@ pause
                   type="checkbox"
                   checked={notifSettings.enabled}
                   onChange={(e) => handleUpdateNotifSettings({ enabled: e.target.checked })}
-                  className="w-4 h-4 rounded text-blue-600 focus:ring-0 cursor-pointer"
-                />
-              </div>
-
-              {/* Toggle 2: Audio Chime */}
-              <div className="p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-[#18181b] flex items-center justify-between">
-                <div>
-                  <div className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                    <Volume2 className="w-3.5 h-3.5 text-amber-500" />
-                    <span>{t.soundChime}</span>
-                  </div>
-                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-                    {language === 'he' ? 'השמעת צליל עדין ונעים בעת הגעת התראה חדשה' : 'Plays a subtle pleasant tone when an alert is triggered'}
-                  </p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={notifSettings.soundEnabled}
-                  onChange={(e) => {
-                    handleUpdateNotifSettings({ soundEnabled: e.target.checked });
-                    if (e.target.checked) playNotificationChime();
-                  }}
                   className="w-4 h-4 rounded text-blue-600 focus:ring-0 cursor-pointer"
                 />
               </div>

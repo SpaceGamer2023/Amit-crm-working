@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Plus, Bell, Settings, ShieldCheck, Languages, Sun, Moon } from 'lucide-react';
+import { Search, Plus, Bell, Settings, Languages, Sun, Moon } from 'lucide-react';
 import { useTranslation } from '../lib/i18n.tsx';
 import { useTheme } from '../lib/theme.tsx';
 import { getActiveCurrency, CURRENCIES } from '../lib/currency.ts';
@@ -28,16 +28,8 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="h-13 bg-white dark:bg-zinc-900 border-b border-zinc-200/80 dark:border-zinc-800 px-4 flex items-center justify-between select-none shrink-0 z-20 transition-colors duration-150">
-      {/* Window controls aesthetic + View title */}
+      {/* View title */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-1.5 ltr:mr-2 rtl:ml-2">
-          <div className="w-3 h-3 rounded-full bg-zinc-300 dark:bg-zinc-700 hover:bg-red-400 dark:hover:bg-red-500 transition-colors cursor-pointer" title="Close" />
-          <div className="w-3 h-3 rounded-full bg-zinc-300 dark:bg-zinc-700 hover:bg-amber-400 dark:hover:bg-amber-500 transition-colors cursor-pointer" title="Minimize" />
-          <div className="w-3 h-3 rounded-full bg-zinc-300 dark:bg-zinc-700 hover:bg-emerald-400 dark:hover:bg-emerald-500 transition-colors cursor-pointer" title="Expand" />
-        </div>
-
-        <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-800" />
-
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">{t.appName}</span>
           <span className="text-zinc-300 dark:text-zinc-600">•</span>
@@ -46,10 +38,6 @@ export const Header: React.FC<HeaderProps> = ({
           </h1>
         </div>
 
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
-          <ShieldCheck className="w-3 h-3" />
-          {t.offlineStatus}
-        </span>
       </div>
 
       {/* Center: Global Search Bar */}
