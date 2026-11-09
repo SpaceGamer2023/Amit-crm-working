@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#142846"/>
+      <stop offset="1" stop-color="#0B1324"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#59E1C1"/>
+      <stop offset="1" stop-color="#55A9FF"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+  <rect x="192" y="210" width="640" height="604" rx="92" fill="#1D3454" stroke="#385577" stroke-width="20"/>
+  <circle cx="418" cy="438" r="102" fill="url(#accent)"/>
+  <path d="M260 708c20-117 82-177 158-177s138 60 158 177" fill="url(#accent)"/>
+  <rect x="610" y="360" width="136" height="30" rx="15" fill="#EAF4FF"/>
+  <rect x="610" y="430" width="136" height="24" rx="12" fill="#8EA9C7"/>
+  <rect x="610" y="490" width="105" height="24" rx="12" fill="#8EA9C7"/>
+  <path d="M586 660h168" stroke="#59E1C1" stroke-width="32" stroke-linecap="round"/>
+  <path d="m710 610 52 50-52 50" fill="none" stroke="#59E1C1" stroke-width="32" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
