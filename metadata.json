@@ -1,0 +1,6 @@
+{
+  "name": "Amit CRM",
+  "description": "A single-user, 100% offline desktop CRM app built with Tauri v2, React, TypeScript, Tailwind CSS, and local SQLite storage.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
