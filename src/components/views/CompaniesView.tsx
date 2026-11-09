@@ -142,7 +142,7 @@ export const CompaniesView: React.FC<CompaniesViewProps> = ({
                         <Building2 className="w-5 h-5" />
                       </div>
                       <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
-                        {isRTL ? 'לא נמצאו חברות במאגר המקומי' : 'No companies found in local database'}
+                        {isRTL ? 'לא נמצאו חברות שתואמות לחיפוש' : 'No companies match your search'}
                       </p>
                       <button
                         onClick={() => onOpenQuickAdd('company')}

@@ -126,7 +126,6 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
       'settings'.includes(q) ||
       'preferences'.includes(q) ||
       'backup'.includes(q) ||
-      'sqlite'.includes(q) ||
       'database'.includes(q) ||
       'הגדרות'.includes(q) ||
       'גיבוי'.includes(q) ||

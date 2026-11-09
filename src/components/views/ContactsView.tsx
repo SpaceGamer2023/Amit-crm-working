@@ -129,7 +129,7 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
                       {language === 'he' ? 'אין אנשי קשר עדיין' : 'No contacts yet'}
                     </p>
                     <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1 mb-3">
-                      {language === 'he' ? 'הוסף איש קשר ראשון למערכת המקומית שלך' : 'Add your first contact to begin tracking relationships locally.'}
+                      {language === 'he' ? 'הוסף איש קשר ראשון כדי להתחיל לנהל קשרי לקוחות.' : 'Add your first contact to start building customer relationships.'}
                     </p>
                     <button
                       onClick={() => onOpenQuickAdd('contact')}

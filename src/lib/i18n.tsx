@@ -6,12 +6,10 @@ export type Language = 'en' | 'he';
 export interface Translations {
   // Brand & Header
   appName: string;
-  offlineStatus: string;
   searchPlaceholder: string;
   searchShortcut: string;
   newRecord: string;
   desktopAlerts: string;
-  databaseSettings: string;
   languageToggle: string;
 
   // Sidebar Nav
@@ -22,7 +20,6 @@ export interface Translations {
   companies: string;
   complaints: string;
   reminders: string;
-  sqliteDatabase: string;
   quickAdd: string;
   searchRecords: string;
   dueSuffix: string;
@@ -125,6 +122,7 @@ export interface Translations {
   cancel: string;
   save: string;
   saving: string;
+  loadingWorkspace: string;
   createRecord: string;
   logTouchpoint: string;
   deleteConfirm: string;
@@ -134,8 +132,6 @@ export interface Translations {
   complaintsTab: string;
   exportBackup: string;
   resetDemoData: string;
-  queryConsole: string;
-  execute: string;
   dealsSubtitle: string;
   dropDealsHere: string;
   complaintsSubtitle: string;
@@ -150,12 +146,10 @@ export interface Translations {
   addContact: string;
   editContact: string;
   closeSheet: string;
-  sqliteSubtitle: string;
   settings: string;
   generalSettings: string;
   notificationSettings: string;
   databaseTab: string;
-  sqlConsoleTab: string;
   allSettings: string;
   allSettingsSubtitle: string;
   openSettings: string;
@@ -194,12 +188,10 @@ export interface Translations {
 export const translations: Record<Language, Translations> = {
   en: {
     appName: 'Amit CRM',
-    offlineStatus: 'Offline SQLite',
     searchPlaceholder: 'Search companies, contacts, deals, reminders...',
     searchShortcut: '⌘K',
     newRecord: 'New',
     desktopAlerts: 'Desktop Alerts',
-    databaseSettings: 'SQLite Database & Backups',
     languageToggle: 'עברית',
 
     workspace: 'Workspace',
@@ -209,13 +201,12 @@ export const translations: Record<Language, Translations> = {
     companies: 'Companies',
     complaints: 'Complaints',
     reminders: 'Reminders',
-    sqliteDatabase: 'SQLite Database',
     quickAdd: 'Quick Add',
     searchRecords: 'Search records',
     dueSuffix: 'due',
 
-    dashboardTitle: 'Amit CRM Dashboard',
-    dashboardSubtitle: 'Single-user SQLite storage • Real-time pipeline, urgent task alerts, and activity stream',
+    dashboardTitle: 'Overview',
+    dashboardSubtitle: 'Your pipeline, upcoming tasks, and recent activity at a glance.',
     activePipelineValue: 'Active Pipeline Value',
     tasksDueToday: 'Tasks Due Today',
     openComplaints: 'Open Complaints',
@@ -302,7 +293,8 @@ export const translations: Record<Language, Translations> = {
     close: 'Close',
     cancel: 'Cancel',
     save: 'Save',
-    saving: 'Saving to SQLite...',
+    saving: 'Saving...',
+    loadingWorkspace: 'Loading your workspace...',
     createRecord: 'Create',
     logTouchpoint: 'Log',
     deleteConfirm: 'Are you sure you want to delete this record?',
@@ -312,9 +304,7 @@ export const translations: Record<Language, Translations> = {
     complaintsTab: 'Complaints',
     exportBackup: 'Export Backup (.json)',
     resetDemoData: 'Reset Demo Data',
-    queryConsole: 'SQLite Query Console',
-    execute: 'Execute',
-    dealsSubtitle: 'Drag and drop deals between stages to update your pipeline in SQLite',
+    dealsSubtitle: 'Move deals between stages to keep your pipeline up to date.',
     dropDealsHere: 'Drop deals here',
     complaintsSubtitle: 'Track client issues and escalate by severity across Open, In Progress, and Resolved',
     logTicket: 'Log Ticket',
@@ -328,14 +318,12 @@ export const translations: Record<Language, Translations> = {
     addContact: 'Add Contact',
     editContact: 'Edit Contact Details',
     closeSheet: 'Close Sheet',
-    sqliteSubtitle: 'Tauri v2 plugin-sql storage inspector, raw query runner, and offline backups',
     settings: 'Settings',
     generalSettings: 'General & Preferences',
     notificationSettings: 'Desktop Notifications',
-    databaseTab: 'Local SQLite Database',
-    sqlConsoleTab: 'SQL Query Console',
+    databaseTab: 'Data & Backups',
     allSettings: 'Settings & Preferences',
-    allSettingsSubtitle: 'Manage workspace preferences, notification alerts, and local SQLite data',
+    allSettingsSubtitle: 'Manage your appearance, language, notifications, and backups.',
     openSettings: 'Settings',
     openAllSettings: 'Open All Settings',
     settingsShortcut: '⌘,',
@@ -371,12 +359,10 @@ export const translations: Record<Language, Translations> = {
 
   he: {
     appName: 'עמית CRM',
-    offlineStatus: 'SQLite מקומי אופליין',
     searchPlaceholder: 'חיפוש חברות, אנשי קשר, עסקאות, משימות...',
     searchShortcut: '⌘K',
     newRecord: 'חדש',
     desktopAlerts: 'התראות שולחן עבודה',
-    databaseSettings: 'מסד נתונים וגיבויים',
     languageToggle: 'English',
 
     workspace: 'סביבת עבודה',
@@ -386,13 +372,12 @@ export const translations: Record<Language, Translations> = {
     companies: 'חברות',
     complaints: 'פניות ותלונות',
     reminders: 'משימות ותזכורות',
-    sqliteDatabase: 'מסד נתונים SQLite',
     quickAdd: 'הוספה מהירה',
     searchRecords: 'חיפוש רשומות',
     dueSuffix: 'להיום',
 
-    dashboardTitle: 'לוח הבקרה של עמית CRM',
-    dashboardSubtitle: 'אחסון מקומי SQLite ללא צורך באינטרנט • מעקב צנרת עסקאות, משימות דחופות ופעילויות',
+    dashboardTitle: 'סקירה כללית',
+    dashboardSubtitle: 'צנרת המכירות, המשימות הקרובות והפעילות האחרונה במקום אחד.',
     activePipelineValue: 'שווי צנרת עסקאות פעילה',
     tasksDueToday: 'משימות להיום',
     openComplaints: 'פניות פתוחות',
@@ -479,7 +464,8 @@ export const translations: Record<Language, Translations> = {
     close: 'סגור',
     cancel: 'ביטול',
     save: 'שמירה',
-    saving: 'שומר ל-SQLite...',
+    saving: 'שומר...',
+    loadingWorkspace: 'טוען את סביבת העבודה...',
     createRecord: 'צור',
     logTouchpoint: 'שמור',
     deleteConfirm: 'האם אתה בטוח שברצונך למחוק רשומה זו?',
@@ -489,9 +475,7 @@ export const translations: Record<Language, Translations> = {
     complaintsTab: 'פניות',
     exportBackup: 'ייצוא גיבוי (.json)',
     resetDemoData: 'איפוס נתוני הדגמה',
-    queryConsole: 'קונסולת שאילתות SQLite',
-    execute: 'הרץ שאילתה',
-    dealsSubtitle: 'גרור ושחרר עסקאות בין השלבים לעדכון צנרת המכירות ב-SQLite',
+    dealsSubtitle: 'העבר עסקאות בין השלבים כדי לעדכן את צנרת המכירות.',
     dropDealsHere: 'גרור עסקאות לכאן',
     complaintsSubtitle: 'מעקב אחר תלונות ופניות לקוחות לפי רמת חומרה וסטטוס טיפול',
     logTicket: 'פתח פנייה',
@@ -505,14 +489,12 @@ export const translations: Record<Language, Translations> = {
     addContact: 'הוסף איש קשר',
     editContact: 'עריכת פרטי איש קשר',
     closeSheet: 'סגור חלונית',
-    sqliteSubtitle: 'מנהל מסד נתונים מקומי SQLite, קונסולת שאילתות וגיבויים מקומיים',
     settings: 'הגדרות',
     generalSettings: 'כללי והעדפות',
     notificationSettings: 'התראות שולחן עבודה',
-    databaseTab: 'מסד נתונים מקומי SQLite',
-    sqlConsoleTab: 'קונסולת שאילתות SQL',
+    databaseTab: 'נתונים וגיבויים',
     allSettings: 'הגדרות והעדפות',
-    allSettingsSubtitle: 'ניהול הגדרות סביבת עבודה, התראות שולחן עבודה ומסד נתונים מקומי',
+    allSettingsSubtitle: 'ניהול המראה, השפה, ההתראות והגיבויים.',
     openSettings: 'הגדרות',
     openAllSettings: 'פתח את כל ההגדרות',
     settingsShortcut: '⌘,',

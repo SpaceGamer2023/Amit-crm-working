@@ -213,7 +213,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
       onSuccess();
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Failed to save record to SQLite');
+      setError(err.message || 'Could not save this record. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

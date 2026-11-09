@@ -4,26 +4,15 @@ import {
   HardDrive,
   Download,
   Upload,
-  RefreshCw,
-  Terminal,
-  AlertCircle,
-  ShieldCheck,
   Languages,
   Bell,
   Sliders,
   Check,
-  Cpu,
   Trash2,
   Sun,
   Moon,
-  Copy,
-  FolderDown,
   DollarSign,
   Clock,
-  GitBranch,
-  ExternalLink,
-  HelpCircle,
-  PackageCheck,
 } from 'lucide-react';
 import { crmDb } from '../../db/crmDatabase.ts';
 import { useTranslation } from '../../lib/i18n.tsx';
@@ -53,28 +42,20 @@ interface SettingsViewProps {
   onDataChanged: () => void;
   notificationPermission?: NotificationPermission | 'default';
   onRequestPermission?: () => void;
-  onTriggerDesktopAlert?: () => void;
 }
 
-type SettingsTab = 'general' | 'desktop' | 'notifications' | 'database' | 'sql';
+type SettingsTab = 'general' | 'notifications' | 'database';
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
   counts,
   onDataChanged,
   notificationPermission = 'default',
   onRequestPermission,
-  onTriggerDesktopAlert,
 }) => {
   const { t, isRTL, language, setLanguage } = useTranslation();
   const { isDark, setTheme, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
-  const [sqlQuery, setSqlQuery] = useState('SELECT * FROM deals LIMIT 10');
-  const [queryResult, setQueryResult] = useState<any[] | null>(null);
-  const [queryError, setQueryError] = useState<string | null>(null);
-  const [isRunning, setIsRunning] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [copiedCmd, setCopiedCmd] = useState(false);
-  const [copiedGit, setCopiedGit] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Currency State
@@ -106,27 +87,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setTimeout(() => setStatusMessage(null), 4000);
   };
 
-  const handleRunQuery = async () => {
-    setIsRunning(true);
-    setQueryError(null);
-    setQueryResult(null);
-    try {
-      const db = await crmDb.getDb();
-      if (sqlQuery.trim().toUpperCase().startsWith('SELECT')) {
-        const rows = await db.select(sqlQuery);
-        setQueryResult(rows);
-      } else {
-        const res = await db.execute(sqlQuery);
-        setQueryResult([{ rowsAffected: res.rowsAffected, lastInsertId: res.lastInsertId }]);
-        onDataChanged();
-      }
-    } catch (e: any) {
-      setQueryError(e.message || 'SQL execution failed');
-    } finally {
-      setIsRunning(false);
-    }
-  };
-
   const handleExportBackup = async () => {
     try {
       const db = await crmDb.getDb();
@@ -140,8 +100,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       const backup = {
         exportedAt: new Date().toISOString(),
         version: '1.0',
-        engine: 'tauri-plugin-sql-sqlite',
-        database: 'sqlite:crm.db',
         data: { companies, contacts, deals, reminders, complaints, activities },
       };
 
@@ -153,7 +111,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       a.click();
       URL.revokeObjectURL(url);
 
-      showStatus(isRTL ? 'גיבוי SQLite מקומי הורד בהצלחה.' : 'Local SQLite backup downloaded successfully.');
+      showStatus(isRTL ? 'הגיבוי הורד בהצלחה.' : 'Backup downloaded successfully.');
     } catch (e: any) {
       alert('Export failed: ' + e.message);
     }
@@ -230,145 +188,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   const handleClearAllRecords = async () => {
-    if (confirm(isRTL ? 'האם אתה בטוח שברצונך למחוק את כל הנתונים במסד הנתונים המקומי? פעולה זו אינה ניתנת לביטול.' : 'Are you sure you want to delete ALL data from the local SQLite database? This cannot be undone.')) {
+    if (confirm(isRTL ? 'למחוק את כל הרשומות? לא ניתן לבטל פעולה זו.' : 'Delete all CRM records? This action cannot be undone.')) {
       await crmDb.clearAllData();
       onDataChanged();
-      showStatus(isRTL ? 'כל הנתונים נמחקו. מסד הנתונים המקומי ריק.' : 'All data cleared. Local database is empty.');
+      showStatus(isRTL ? 'כל הרשומות נמחקו.' : 'All CRM records were deleted.');
     }
   };
 
   const handleSeedSampleData = async () => {
-    if (confirm(isRTL ? 'לטעון נתוני הדגמה למסד הנתונים?' : 'Load sample demo data into local database?')) {
+    if (confirm(isRTL ? 'לטעון נתוני הדגמה?' : 'Load sample demo data?')) {
       await crmDb.seedInitialData();
       onDataChanged();
       showStatus(isRTL ? 'נתוני הדגמה נטענו בהצלחה.' : 'Sample data loaded successfully.');
     }
   };
 
-  const copyBuildCommand = () => {
-    navigator.clipboard.writeText('npm run tauri:build');
-    setCopiedCmd(true);
-    setTimeout(() => setCopiedCmd(false), 2500);
-  };
-
-  const gitCommandsText = `git init
-git add .
-git commit -m "Amit CRM initial release"
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/amit-crm.git
-git push -u origin main`;
-
-  const copyGitCommands = () => {
-    navigator.clipboard.writeText(gitCommandsText);
-    setCopiedGit(true);
-    setTimeout(() => setCopiedGit(false), 2500);
-  };
-
-  const downloadProjectZip = () => {
-    const a = document.createElement('a');
-    a.href = '/amit-crm-source.zip';
-    a.download = 'amit-crm-source.zip';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    showStatus(language === 'he' ? 'הורדת קובץ הפרויקט המלא (ZIP) החלה.' : 'Downloading full project source ZIP...');
-  };
-
-  const downloadBuildBat = () => {
-    const batContent = `@echo off
-setlocal enabledelayedexpansion
-
-cd /d "%~dp0"
-
-echo ========================================================
-echo        Amit CRM - Windows .EXE Desktop Builder
-echo ========================================================
-echo.
-
-if not exist "package.json" (
-    echo [ERROR] package.json NOT FOUND IN THIS DIRECTORY!
-    echo Current folder: %CD%
-    echo.
-    echo It looks like you downloaded only 'build-exe.bat' without the project files.
-    echo To compile Amit CRM into an .EXE locally, this file must reside inside the
-    echo project root directory alongside package.json, src\\, and src-tauri\\.
-    echo.
-    echo HOW TO FIX:
-    echo 1. In Amit CRM Settings, click "Download Complete Project (ZIP)".
-    echo 2. Extract that ZIP into this folder: %CD%
-    echo 3. Run build-exe.bat again!
-    echo.
-    echo OR USE THE RECOMMENDED 100%% FREE GITHUB ACTIONS BUILDER:
-    echo You don't need to install Node or Rust on your PC!
-    echo See Settings > Desktop Executable (.exe).
-    echo.
-    pause
-    exit /b 1
-)
-
-where node >nul 2>nul
-if %errorlevel% neq 0 (
-    echo [ERROR] Node.js is not installed or not in PATH.
-    echo Please install Node.js from https://nodejs.org/ (v20+ LTS).
-    pause
-    exit /b 1
-)
-
-where cargo >nul 2>nul
-if %errorlevel% neq 0 (
-    echo [WARNING] Rust / Cargo was not found in your PATH.
-    echo Tauri requires the Rust toolchain to compile native Windows .exe.
-    echo.
-    echo 1. Install Rust: https://rustup.rs/
-    echo 2. Install "Desktop development with C++" via Visual Studio Installer.
-    echo.
-    set /p CONTINUE="Try building anyway? (y/n): "
-    if /i "!CONTINUE!" neq "y" exit /b 1
-)
-
-echo [1/3] Installing frontend dependencies...
-call npm install
-if %errorlevel% neq 0 (
-    echo [ERROR] Failed to install dependencies.
-    pause
-    exit /b %errorlevel%
-)
-
-echo [2/3] Compiling React frontend with Vite...
-call npm run build
-if %errorlevel% neq 0 (
-    echo [ERROR] Frontend build failed.
-    pause
-    exit /b %errorlevel%
-)
-
-echo [3/3] Compiling Tauri v2 Windows .EXE with local SQLite...
-call npm run tauri:build
-if %errorlevel% neq 0 (
-    echo [ERROR] Tauri build failed. Check the error output above.
-    pause
-    exit /b %errorlevel%
-)
-
-echo.
-echo ========================================================
-echo   SUCCESS! Amit CRM .exe has been successfully built!
-echo ========================================================
-echo.
-echo Executable location:
-echo   src-tauri\\target\\release\\bundle\\nsis\\
-echo.
-pause
-`;
-    const blob = new Blob([batContent], { type: 'application/x-bat' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'build-exe.bat';
-    a.click();
-    URL.revokeObjectURL(url);
-    showStatus(isRTL ? 'קובץ build-exe.bat הורד.' : 'build-exe.bat downloaded.');
-  };
 
   const handleTestTaskAlert = async () => {
     const title = language === 'he' ? '📋 משימה לדוגמה שממתינה להיום' : '📋 Sample Task Due Today';
@@ -389,27 +223,26 @@ pause
     showStatus(language === 'he' ? 'התראת מועד עסקה נשלחה בהצלחה!' : 'Deal alert sent!');
   };
 
+  const tabClass = (tab: SettingsTab) => `flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+    activeTab === tab
+      ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-sm ring-1 ring-zinc-200/80 dark:ring-zinc-700'
+      : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 hover:bg-white/70 dark:hover:bg-zinc-800/60'
+  }`;
+
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-6 max-w-6xl mx-auto space-y-7">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200/80 dark:border-zinc-800 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200/80 dark:border-zinc-800 pb-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 flex items-center justify-center shadow-xs">
-            <Settings className="w-5 h-5" />
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-sm ring-1 ring-blue-500/20">
+            <Settings className="w-5 h-5" strokeWidth={2.2} />
           </div>
           <div>
-            <h2 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">{t.allSettings}</h2>
+            <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">{t.allSettings}</h2>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
               {t.allSettingsSubtitle}
             </p>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>100% Offline • Local SQLite</span>
-          </span>
         </div>
       </div>
 
@@ -424,66 +257,28 @@ pause
       )}
 
       {/* Settings Navigation Tabs */}
-      <div className="flex border-b border-zinc-200/90 dark:border-zinc-700/80 gap-1 overflow-x-auto pb-px">
+      <div className="inline-flex max-w-full flex-wrap gap-1.5 rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-zinc-100/80 dark:bg-zinc-900/80 p-1.5">
         <button
           onClick={() => setActiveTab('general')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'general'
-              ? 'border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100 font-bold'
-              : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
-          }`}
+          className={tabClass('general')}
         >
           <Sliders className="w-4 h-4" />
           <span>{t.generalSettings}</span>
         </button>
 
-        <button
-          onClick={() => setActiveTab('desktop')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'desktop'
-              ? 'border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100 font-bold'
-              : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
-          }`}
-        >
-          <Cpu className="w-4 h-4" />
-          <span>Desktop Executable (.exe)</span>
-        </button>
 
-        <button
-          onClick={() => setActiveTab('notifications')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'notifications'
-              ? 'border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100 font-bold'
-              : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
-          }`}
-        >
+
+        <button onClick={() => setActiveTab('notifications')} className={tabClass('notifications')}>
           <Bell className="w-4 h-4" />
           <span>{t.notificationSettings}</span>
         </button>
 
-        <button
-          onClick={() => setActiveTab('database')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'database'
-              ? 'border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100 font-bold'
-              : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
-          }`}
-        >
+        <button onClick={() => setActiveTab('database')} className={tabClass('database')}>
           <HardDrive className="w-4 h-4" />
           <span>{t.databaseTab}</span>
         </button>
 
-        <button
-          onClick={() => setActiveTab('sql')}
-          className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === 'sql'
-              ? 'border-zinc-900 dark:border-zinc-100 text-zinc-900 dark:text-zinc-100 font-bold'
-              : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'
-          }`}
-        >
-          <Terminal className="w-4 h-4" />
-          <span>{t.sqlConsoleTab}</span>
-        </button>
+
       </div>
 
       {/* Tab 1: General Preferences */}
@@ -648,131 +443,6 @@ pause
         </div>
       )}
 
-      {/* Tab 2: Desktop .EXE & GitHub Guide */}
-      {activeTab === 'desktop' && (
-        <div className="space-y-5 animate-in fade-in duration-150">
-          {/* Explanation Callout for the ENOENT Error */}
-          <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 space-y-2">
-            <div className="flex items-center gap-2 font-bold text-xs">
-              <HelpCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-              <span>{language === 'he' ? 'פתרון לשגיאת npm error enoent Could not read package.json' : 'Fix for "npm error enoent Could not read package.json"'}</span>
-            </div>
-            <p className="text-xs leading-relaxed opacity-90">
-              {language === 'he'
-                ? 'שגיאה זו מתרחשת כאשר מורידים רק את הקובץ build-exe.bat לבדו. סקריפט בנייה של Node/Tauri חייב להימצא בתוך תיקיית הפרויקט המלאה שבה נמצאים package.json ו-src-tauri. יש לך 2 דרכים קלות להפעיל זאת:'
-                : 'This error occurs when only "build-exe.bat" is downloaded by itself into a folder. A Node/Tauri builder script requires the complete project folder containing package.json and src-tauri. Below are the 2 easiest solutions:'}
-            </p>
-          </div>
-
-          {/* Solution 1: Download Complete Project ZIP */}
-          <div className="p-5 rounded-xl bg-white dark:bg-[#202125] border border-zinc-200/90 dark:border-zinc-700/80 shadow-2xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                  <PackageCheck className="w-4 h-4 text-emerald-500" />
-                  <span>{language === 'he' ? 'דרך 1: הורדת כל קובצי הפרויקט (ZIP) לבנייה במחשב שלך' : 'Option 1: Download Complete Project ZIP (Local Build)'}</span>
-                </h3>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                  {language === 'he'
-                    ? 'הורד ארכיון ZIP של כל הפרויקט (כולל package.json, src, src-tauri ו-build-exe.bat), חלץ אותו והרץ את build-exe.bat.'
-                    : 'Download the entire project source ZIP archive (all 52 files), extract into your folder, and double-click build-exe.bat.'}
-                </p>
-              </div>
-
-              <button
-                onClick={downloadProjectZip}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer shrink-0"
-              >
-                <Download className="w-4 h-4" />
-                <span>{language === 'he' ? 'הורד פרויקט מלא (ZIP)' : 'Download Complete Project (ZIP)'}</span>
-              </button>
-            </div>
-
-            <div className="p-3 bg-zinc-50 dark:bg-[#18181b] rounded-lg border border-zinc-200/70 dark:border-zinc-700/70 text-xs text-zinc-600 dark:text-zinc-400 space-y-1">
-              <div className="font-semibold text-zinc-800 dark:text-zinc-200">{language === 'he' ? 'הוראות חילוץ:' : 'Extraction Steps:'}</div>
-              <ol className="list-decimal ltr:pl-5 rtl:pr-5 space-y-0.5 text-[11px]">
-                <li>{language === 'he' ? 'לחץ על "הורד פרויקט מלא (ZIP)"' : 'Click "Download Complete Project (ZIP)" above.'}</li>
-                <li>{language === 'he' ? 'פתח את הקובץ amit-crm-source.zip וחלץ את כל תוכנו לתיקייה שלך (למשל C:\\Users\\liorl\\Downloads\\Utility\\Amit CRM)' : 'Extract amit-crm-source.zip into your folder (e.g. C:\\Users\\liorl\\Downloads\\Utility\\Amit CRM).'}</li>
-                <li>{language === 'he' ? 'וודא ש-package.json נמצא באותה תיקייה לצד build-exe.bat' : 'Ensure package.json is now in the same folder as build-exe.bat.'}</li>
-                <li>{language === 'he' ? 'הרץ שוב את build-exe.bat בלחיצה כפולה!' : 'Double-click build-exe.bat to build!'}</li>
-              </ol>
-            </div>
-          </div>
-
-          {/* Solution 2: Recommended 100% Free Private GitHub Actions Cloud Builder */}
-          <div className="p-5 rounded-xl bg-white dark:bg-[#202125] border border-blue-200/80 dark:border-blue-800/80 shadow-2xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                    <GitBranch className="w-4 h-4 text-blue-500" />
-                    <span>{language === 'he' ? 'דרך 2 (מומלצת ביותר): בנייה אוטומטית ב-GitHub פרטי ללא צורך בהתקנות' : 'Option 2 (Recommended): Free Private GitHub Actions Builder'}</span>
-                  </h3>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300">
-                    Zero PC Setup
-                  </span>
-                </div>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                  {language === 'he'
-                    ? 'אתה לא צריך להתקין Rust, Cargo או כלי C++ במחשב שלך! העלה את הפרויקט ל-GitHub בריפו פרטי (רק אתה רואה), ושרתי GitHub יקמפלו את ה-EXE בחינם תוך 3 דקות.'
-                    : 'You do NOT need to install Rust or Visual Studio C++ on your PC! Push this code to a 100% Private GitHub repository and GitHub Actions will compile the Windows .EXE for you in ~3 minutes.'}
-                </p>
-              </div>
-            </div>
-
-            {/* Step-by-Step GitHub Guide */}
-            <div className="space-y-3 pt-2 text-xs">
-              <div className="p-3.5 rounded-lg bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-700 space-y-2">
-                <div className="font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] flex items-center justify-center font-bold">1</span>
-                  <span>{language === 'he' ? 'צור מאגר פרטי חדש ב-GitHub' : 'Create a New Private Repository on GitHub'}</span>
-                </div>
-                <p className="text-zinc-600 dark:text-zinc-400 text-[11px]">
-                  {language === 'he'
-                    ? 'גש אל github.com/new, תן למאגר שם (למשל amit-crm) וסמן אותו כ-Private (פרטי לחלוטין).'
-                    : 'Go to https://github.com/new, name it "amit-crm", and make sure to select "Private".'}
-                </p>
-              </div>
-
-              <div className="p-3.5 rounded-lg bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-700 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] flex items-center justify-center font-bold">2</span>
-                    <span>{language === 'he' ? 'העלאת הקוד ל-GitHub' : 'Push the Code to GitHub'}</span>
-                  </div>
-                  <button
-                    onClick={copyGitCommands}
-                    className="inline-flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
-                  >
-                    <Copy className="w-3 h-3" />
-                    <span>{copiedGit ? (language === 'he' ? 'הועתק!' : 'Copied!') : (language === 'he' ? 'העתק פקודות' : 'Copy Commands')}</span>
-                  </button>
-                </div>
-                <div className="p-2.5 rounded-lg bg-zinc-900 text-zinc-100 font-mono text-[11px] overflow-x-auto whitespace-pre select-all">
-                  {gitCommandsText}
-                </div>
-                <p className="text-zinc-500 dark:text-zinc-400 text-[11px]">
-                  {language === 'he'
-                    ? 'לחילופין: תוכל להשתמש בתוכנת GitHub Desktop – פשוט גרור את התיקייה שחילצת מ-amit-crm-source.zip ולחץ Publish Repository.'
-                    : 'Alternatively, use GitHub Desktop: drag & drop the extracted folder and click "Publish Repository".'}
-                </p>
-              </div>
-
-              <div className="p-3.5 rounded-lg bg-zinc-50 dark:bg-[#18181b] border border-zinc-200 dark:border-zinc-700 space-y-2">
-                <div className="font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] flex items-center justify-center font-bold">3</span>
-                  <span>{language === 'he' ? 'הורדת קובץ ה-EXE המוכן מלשונית Actions' : 'Download the Compiled EXE from GitHub Actions'}</span>
-                </div>
-                <p className="text-zinc-600 dark:text-zinc-400 text-[11px]">
-                  {language === 'he'
-                    ? 'במאגר שלך ב-GitHub, לחץ על הלשונית "Actions". תראה את משימת "Build Windows Executable (.exe)" רצה. לאחר כ-3 דקות יופיע וי ירוק. לחץ עליה, ובתחתית העמוד תחת Artifacts תמצא את Amit-CRM-Windows-EXE להורדה מיידית!'
-                    : 'In your GitHub repository, click the "Actions" tab. The workflow runs automatically. Once complete (green check in ~3 mins), click the build, and scroll down to Artifacts to download Amit-CRM-Windows-EXE!'}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Tab 3: Desktop Notifications */}
       {activeTab === 'notifications' && (
@@ -916,20 +586,18 @@ pause
         </div>
       )}
 
-      {/* Tab 4: Local SQLite Database & Clean Data */}
+      {/* Data & Backups */}
       {activeTab === 'database' && (
         <div className="space-y-5 animate-in fade-in duration-150">
           <div className="p-5 rounded-xl bg-white dark:bg-[#202125] border border-zinc-200/90 dark:border-zinc-700/80 shadow-2xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 flex items-center justify-center border border-emerald-200 dark:border-emerald-800">
+                <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 flex items-center justify-center border border-blue-200/80 dark:border-blue-900/70">
                   <HardDrive className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Connection: sqlite:crm.db</h3>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {t.offlineStatus} • 100% Offline Local Engine
-                  </p>
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{language === 'he' ? 'נתוני ה-CRM' : 'CRM data'}</h3>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">{language === 'he' ? 'ייצוא גיבוי או שחזור נתונים' : 'Export a backup or restore your records'}</p>
                 </div>
               </div>
 
@@ -1022,79 +690,7 @@ pause
         </div>
       )}
 
-      {/* Tab 5: Raw SQL Console */}
-      {activeTab === 'sql' && (
-        <div className="space-y-4 animate-in fade-in duration-150">
-          <div className="p-4 rounded-xl bg-white dark:bg-[#202125] border border-zinc-200/90 dark:border-zinc-700/80 shadow-2xs space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5">
-                <Terminal className="w-4 h-4 text-zinc-500" />
-                <span>Execute SQL Statement (sqlite:crm.db)</span>
-              </span>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setSqlQuery('SELECT * FROM deals')}
-                  className="text-[11px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer"
-                >
-                  deals
-                </button>
-                <button
-                  onClick={() => setSqlQuery('SELECT * FROM contacts')}
-                  className="text-[11px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer"
-                >
-                  contacts
-                </button>
-                <button
-                  onClick={() => setSqlQuery('SELECT * FROM reminders')}
-                  className="text-[11px] text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer"
-                >
-                  reminders
-                </button>
-              </div>
-            </div>
 
-            <textarea
-              rows={3}
-              value={sqlQuery}
-              onChange={(e) => setSqlQuery(e.target.value)}
-              className="w-full p-3 font-mono text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-[#18181b] text-zinc-900 dark:text-zinc-100 focus:outline-hidden focus:ring-1 focus:ring-zinc-900 dark:focus:ring-zinc-400"
-              placeholder="SELECT * FROM deals"
-            />
-
-            <div className="flex justify-end">
-              <button
-                onClick={handleRunQuery}
-                disabled={isRunning || !sqlQuery.trim()}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 dark:bg-zinc-100 hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-xs font-semibold rounded-lg shadow-2xs disabled:opacity-50 transition-colors cursor-pointer"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isRunning ? 'animate-spin' : ''}`} />
-                <span>Execute SQL</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Results table */}
-          {queryResult && (
-            <div className="p-4 rounded-xl bg-white dark:bg-[#202125] border border-zinc-200/90 dark:border-zinc-700/80 shadow-2xs overflow-hidden">
-              <div className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-2">
-                Results ({queryResult.length} rows):
-              </div>
-              <div className="overflow-x-auto max-h-64 overflow-y-auto">
-                <pre className="text-[11px] font-mono p-3 bg-zinc-50 dark:bg-[#18181b] text-zinc-800 dark:text-zinc-200 rounded-lg">
-                  {JSON.stringify(queryResult, null, 2)}
-                </pre>
-              </div>
-            </div>
-          )}
-
-          {queryError && (
-            <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{queryError}</span>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 };

@@ -126,17 +126,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-6 max-w-7xl mx-auto space-y-7">
       {/* Top Banner / Welcome Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-zinc-200/80 dark:border-zinc-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-zinc-200/80 dark:border-zinc-800">
         <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">{t.dashboardTitle}</h2>
-            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
-              {t.offlineStatus}
-            </span>
-          </div>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+          <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">{t.dashboardTitle}</h2>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">
             {t.dashboardSubtitle}
           </p>
         </div>
@@ -330,8 +325,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </h4>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-md mx-auto mt-1">
                 {language === 'he'
-                  ? 'המערכת פועלת באופן מקומי לחלוטין ללא נתוני דוגמה. לחץ על הכפתור מטה כדי להוסיף את העסקה הראשונה שלך.'
-                  : 'All example data has been removed. Amit CRM is running 100% locally with SQLite. Add your first real deal below to start tracking your revenue.'}
+                  ? 'הוסף את העסקה הראשונה שלך כדי להתחיל לעקוב אחר ההכנסות.'
+                  : 'Add your first deal to start tracking your sales pipeline and revenue.'}
               </p>
             </div>
             <button

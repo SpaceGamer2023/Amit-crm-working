@@ -148,7 +148,7 @@ export const RemindersView: React.FC<RemindersViewProps> = ({
         <div>
           <h2 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">{t.reminders}</h2>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            {language === 'he' ? 'מעקב משימות אופליין מקומי עם התראות שולחן עבודה' : 'Native offline alert monitoring with instant SQLite synchronization'}
+            {language === 'he' ? 'עקוב אחר משימות והישאר מעודכן בעזרת התראות שולחן עבודה.' : 'Keep track of follow-ups with timely desktop reminders.'}
           </p>
         </div>
 

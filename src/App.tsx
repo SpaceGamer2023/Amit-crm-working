@@ -191,7 +191,7 @@ function AppContent() {
       case 'companies': return t.companies;
       case 'complaints': return t.complaints;
       case 'reminders': return t.reminders;
-      case 'settings': return t.sqliteDatabase;
+      case 'settings': return t.settings;
     }
   };
 
@@ -200,7 +200,7 @@ function AppContent() {
       <div className="h-screen w-screen flex items-center justify-center bg-zinc-50 text-zinc-600 text-xs">
         <div className="flex flex-col items-center gap-2">
           <div className="w-6 h-6 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin" />
-          <p className="font-medium text-zinc-700">{t.saving}</p>
+          <p className="font-medium text-zinc-700">{t.loadingWorkspace}</p>
         </div>
       </div>
     );
@@ -314,7 +314,6 @@ function AppContent() {
               onDataChanged={loadCrmData}
               notificationPermission={notificationPermission}
               onRequestPermission={handleRequestNotificationPermission}
-              onTriggerDesktopAlert={handleTriggerDesktopAlert}
             />
           )}
         </main>
