@@ -1,3 +1,5 @@
+import NativeSqlDatabase from '@tauri-apps/plugin-sql';
+
 /**
  * Local SQLite Engine & Tauri v2 `tauri-plugin-sql` adapter.
  * 
@@ -326,6 +328,188 @@ class BrowserSqliteDatabase implements TauriSqlDatabase {
   }
 }
 
+class NativeSqlDatabaseAdapter implements TauriSqlDatabase {
+  constructor(private readonly database: NativeSqlDatabase) {}
+
+  public execute(query: string, bindValues: any[] = []): Promise<QueryResult> {
+    return this.database.execute(toSqlitePluginPlaceholders(query), bindValues);
+  }
+
+  public select<T = any>(query: string, bindValues: any[] = []): Promise<T[]> {
+    return this.database.select<T[]>(toSqlitePluginPlaceholders(query), bindValues);
+  }
+
+  public close(): Promise<boolean> {
+    return this.database.close();
+  }
+}
+
+/** Convert the adapter's SQLite `?` placeholders to the plugin's `$1`, `$2` syntax. */
+function toSqlitePluginPlaceholders(query: string): string {
+  let result = '';
+  let parameterIndex = 0;
+  let quote: "'" | '"' | '`' | ']' | null = null;
+  let lineComment = false;
+  let blockComment = false;
+
+  for (let i = 0; i < query.length; i++) {
+    const char = query[i];
+    const next = query[i + 1];
+
+    if (lineComment) {
+      result += char;
+      if (char === '\n') lineComment = false;
+      continue;
+    }
+    if (blockComment) {
+      result += char;
+      if (char === '*' && next === '/') {
+        result += next;
+        i++;
+        blockComment = false;
+      }
+      continue;
+    }
+    if (quote) {
+      result += char;
+      if (char === quote) {
+        if (next === quote && quote !== ']') {
+          result += next;
+          i++;
+        } else {
+          quote = null;
+        }
+      }
+      continue;
+    }
+
+    if (char === '-' && next === '-') {
+      result += '--';
+      i++;
+      lineComment = true;
+    } else if (char === '/' && next === '*') {
+      result += '/*';
+      i++;
+      blockComment = true;
+    } else if (char === "'") {
+      result += char;
+      quote = "'";
+    } else if (char === '"') {
+      result += char;
+      quote = '"';
+    } else if (char === '`') {
+      result += char;
+      quote = '`';
+    } else if (char === '[') {
+      result += char;
+      quote = ']';
+    } else if (char === '?') {
+      result += `$${++parameterIndex}`;
+    } else {
+      result += char;
+    }
+  }
+
+  return result;
+}
+
+const legacyTables = {
+  companies: { columns: ['id', 'name', 'industry', 'website', 'phone'], required: ['id', 'name'] },
+  contacts: { columns: ['id', 'company_id', 'name', 'email', 'phone', 'role'], required: ['id', 'name'] },
+  deals: { columns: ['id', 'contact_id', 'company_id', 'title', 'value', 'stage', 'close_date', 'currency'], required: ['id', 'title', 'value', 'stage'] },
+  reminders: { columns: ['id', 'contact_id', 'title', 'due_date', 'completed', 'priority'], required: ['id', 'title', 'due_date', 'priority'] },
+  complaints: { columns: ['id', 'contact_id', 'title', 'status', 'severity', 'description'], required: ['id', 'title', 'status', 'severity'] },
+  activities: { columns: ['id', 'contact_id', 'type', 'notes', 'created_at'], required: ['id', 'type', 'notes', 'created_at'] },
+} as const;
+
+export type LegacyDataMigrationStatus = 'not-native' | 'imported' | 'already-migrated' | 'no-legacy-data' | 'legacy-unreadable';
+
+/** Import old browser-backed CRM records into native SQLite once, leaving the source as a backup. */
+export async function migrateLegacyBrowserData(
+  database: TauriSqlDatabase,
+  path: string,
+): Promise<LegacyDataMigrationStatus> {
+  if (!(database instanceof NativeSqlDatabaseAdapter)) return 'not-native';
+
+  const migrationKey = 'browser-local-storage-to-sqlite-v1';
+  await database.execute(`
+    CREATE TABLE IF NOT EXISTS app_migrations (
+      name TEXT PRIMARY KEY,
+      completed_at TEXT NOT NULL
+    )
+  `);
+
+  const completed = await database.select<{ name: string }>(
+    'SELECT name FROM app_migrations WHERE name = ?',
+    [migrationKey],
+  );
+  if (completed.length > 0) return 'already-migrated';
+
+  if (typeof window === 'undefined' || !window.localStorage) return 'no-legacy-data';
+
+  const storageKey = `twenty_crm_sqlite_${path.replace(/^sqlite:/, '')}`;
+  const raw = window.localStorage.getItem(storageKey);
+  let legacyData: Record<string, unknown> = {};
+
+  if (raw) {
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        console.error('Legacy CRM browser storage has an unexpected format; the original data was left untouched.');
+        return 'legacy-unreadable';
+      }
+      legacyData = parsed as Record<string, unknown>;
+    } catch (error) {
+      console.error('Could not parse legacy CRM browser storage; the original data was left untouched.', error);
+      return 'legacy-unreadable';
+    }
+  }
+
+  const hasLegacyRows = Object.keys(legacyTables).some((table) => {
+    const rows = legacyData[table];
+    return Array.isArray(rows) && rows.length > 0;
+  });
+  let skippedIncompleteRows = false;
+  for (const [table, definition] of Object.entries(legacyTables)) {
+    const sourceRows = legacyData[table];
+    if (!Array.isArray(sourceRows)) continue;
+
+    for (const candidate of sourceRows) {
+      if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
+        skippedIncompleteRows = true;
+        continue;
+      }
+      const row = candidate as Record<string, unknown>;
+      if (definition.required.some((column) => row[column] === undefined || row[column] === null)) {
+        skippedIncompleteRows = true;
+        console.warn(`Skipped an incomplete legacy ${table} row; the original browser data was preserved.`);
+        continue;
+      }
+
+      const columns = [...definition.columns];
+      const placeholders = columns.map(() => '?').join(', ');
+      const values = columns.map((column) => row[column] ?? null);
+      await database.execute(
+        `INSERT OR IGNORE INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`,
+        values,
+      );
+    }
+  }
+
+  const status: LegacyDataMigrationStatus = skippedIncompleteRows
+    ? 'legacy-unreadable'
+    : (hasLegacyRows ? 'imported' : 'no-legacy-data');
+
+  // Write the marker only after import succeeds. The source localStorage is retained as a backup.
+  if (status !== 'legacy-unreadable') {
+    await database.execute(
+      'INSERT INTO app_migrations (name, completed_at) VALUES (?, ?)',
+      [migrationKey, new Date().toISOString()],
+    );
+  }
+  return status;
+}
+
 // Global registry of loaded databases
 const loadedDatabases = new Map<string, TauriSqlDatabase>();
 
@@ -338,21 +522,12 @@ export class Database {
       return loadedDatabases.get(path)!;
     }
 
-    // Check if running in native desktop Tauri with tauri-plugin-sql
+    // Use the real SQL plugin in the desktop app. Browser runs retain the localStorage adapter.
     if (typeof window !== 'undefined' && (window as any).__TAURI_INTERNALS__) {
-      try {
-        // Attempt native import if Tauri runtime is active
-        const pluginName = '@tauri-apps/plugin-sql';
-        const tauriSql = await import(/* @vite-ignore */ pluginName);
-        if (tauriSql && tauriSql.default && typeof tauriSql.default.load === 'function') {
-          const nativeDb = await tauriSql.default.load(path);
-          loadedDatabases.set(path, nativeDb);
-          return nativeDb;
-        }
-      } catch (e) {
-        // Fall back gracefully to offline in-browser SQLite
-        console.info('Tauri runtime active; using local offline storage engine.');
-      }
+      const nativeDb = await NativeSqlDatabase.load(path);
+      const database = new NativeSqlDatabaseAdapter(nativeDb);
+      loadedDatabases.set(path, database);
+      return database;
     }
 
     const browserDb = new BrowserSqliteDatabase(path);

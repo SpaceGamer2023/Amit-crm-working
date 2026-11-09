@@ -1,4 +1,4 @@
-import { Database, TauriSqlDatabase } from './sqliteAdapter.ts';
+import { Database, migrateLegacyBrowserData, TauriSqlDatabase } from './sqliteAdapter.ts';
 import {
   Company,
   Contact,
@@ -108,14 +108,29 @@ export class CrmDatabase {
       )
     `);
 
-    // Ensure all example/demo data is purged so the application starts clean, empty, and 100% local
+    // Move any existing browser-backed CRM records into native SQLite before initializing the app.
+    const migrationStatus = await migrateLegacyBrowserData(this.db, DB_PATH);
+
+    // Do not purge existing records during first launch or after a localStorage marker is lost.
     if (typeof window !== 'undefined') {
       const cleaned = window.localStorage.getItem('amit_crm_cleaned_examples');
       if (cleaned !== 'true') {
-        await this.clearAllData();
+        if (migrationStatus === 'no-legacy-data' && !(await this.hasAnyRecords())) {
+          await this.clearAllData();
+        }
         window.localStorage.setItem('amit_crm_cleaned_examples', 'true');
       }
     }
+  }
+
+  private async hasAnyRecords(): Promise<boolean> {
+    if (!this.db) return false;
+
+    for (const table of ['companies', 'contacts', 'deals', 'reminders', 'complaints', 'activities']) {
+      const rows = await this.db.select(`SELECT id FROM ${table} LIMIT 1`);
+      if (rows.length > 0) return true;
+    }
+    return false;
   }
 
   public async clearAllData(): Promise<void> {
